@@ -7,7 +7,7 @@ pygame.init()
 
 WIDTH = 400
 HEIGHT = 600
-FPS = 999
+FPS = 144
 
 pygame.display.set_caption('Once upon a castle')  # или что-то другое :)
 pygame.display.set_icon(pygame.image.load('data/player.png'))
@@ -72,12 +72,12 @@ def start_screen():
     block.image = pygame.transform.scale(load_image('static_block.png'), (75, 25))
     block.rect = block.image.get_rect()
     block.rect.x, block.rect.y = 250, 450
-    wall = pygame.transform.scale(load_image('wall.png'), (35, 35))
-    for i in range(WIDTH // 18):
-        screen.blit(wall, (-(wall.get_width() // 2), wall.get_height() * i))
-    wall = pygame.transform.rotate(wall, 180)
-    for i in range(WIDTH // 18):
-        screen.blit(wall, (WIDTH - (wall.get_width() // 2), wall.get_height() * i))
+    # wall = pygame.transform.scale(load_image('wall.png'), (35, 35))
+    # for i in range(WIDTH // 18):
+    # screen.blit(wall, (-(wall.get_width() // 2), wall.get_height() * i))
+    # wall = pygame.transform.rotate(wall, 180)
+    # for i in range(WIDTH // 18):
+    # screen.blit(wall, (WIDTH - (wall.get_width() // 2), wall.get_height() * i))
     # основной цикл
     while True:
         for event in pygame.event.get():
@@ -86,6 +86,8 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 return
         start_sprites.draw(screen)
+        pygame.display.flip()
+        clock.tick(FPS)
 
 
 def terminate():
