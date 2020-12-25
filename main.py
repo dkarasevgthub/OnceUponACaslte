@@ -1,16 +1,21 @@
-import pygame
 import os
 import sys
+
+import pygame
 
 pygame.init()
 
 WIDTH = 400
 HEIGHT = 600
-FPS = 60
+FPS = 999
 
+pygame.display.set_caption('Once upon a castle')  # или что-то другое :)
+pygame.display.set_icon(pygame.image.load('data/player.png'))
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
+all_sprites = pygame.sprite.Group()
 static_block = pygame.sprite.Group()
+start_sprites = pygame.sprite.Group()
 
 
 def load_image(name, colorkey=None):
@@ -29,6 +34,14 @@ def load_image(name, colorkey=None):
     return image
 
 
+class StaticBlock(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__(static_block, all_sprites)
+        self.image = pygame.transform.scale(load_image('static_block.png'), (75, 25))
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = x, y
+
+
 class Camera:
     def __init__(self):
         self.dx = 0
@@ -44,28 +57,35 @@ class Camera:
 
 
 def start_screen():
-    text = ["Желаю вам приятной игры!"]
-    background = pygame.transform.scale(load_image('background2.png'), (WIDTH, HEIGHT))
+    # задний фон
+    background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     screen.blit(background, (0, 0))
-    font = pygame.font.Font(None, 30)
-    text_coord = 75
-    for line in text:
-        string_rendered = font.render(line, True, pygame.Color("black"))
-        string_rect = string_rendered.get_rect()
-        text_coord += 10
-        string_rect.top = text_coord
-        string_rect.x = 10
-        text_coord += string_rect.height
-        screen.blit(string_rendered, string_rect)
-
+    # текст
+    font = pygame.font.Font('data/font.ttf', 20)
+    text = font.render("Have fun!", True, pygame.Color((20, 20, 20)))
+    text_rect = text.get_rect()
+    text_rect.x = 30
+    text_rect.y = 90
+    screen.blit(text, text_rect)
+    # блок
+    block = pygame.sprite.Sprite(start_sprites)
+    block.image = pygame.transform.scale(load_image('static_block.png'), (75, 25))
+    block.rect = block.image.get_rect()
+    block.rect.x, block.rect.y = 250, 450
+    wall = pygame.transform.scale(load_image('wall.png'), (35, 35))
+    for i in range(WIDTH // 18):
+        screen.blit(wall, (-(wall.get_width() // 2), wall.get_height() * i))
+    wall = pygame.transform.rotate(wall, 180)
+    for i in range(WIDTH // 18):
+        screen.blit(wall, (WIDTH - (wall.get_width() // 2), wall.get_height() * i))
+    # основной цикл
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN:
                 return
-        pygame.display.flip()
-        clock.tick(FPS)
+        start_sprites.draw(screen)
 
 
 def terminate():
@@ -79,7 +99,8 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    screen.fill(pygame.Color("black"))
+    background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
+    screen.blit(background, (0, 0))
     pygame.display.flip()
     clock.tick(FPS)
 terminate()
