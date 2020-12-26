@@ -9,8 +9,8 @@ pygame.init()
 WIDTH = 400
 HEIGHT = 600
 FPS = 100
-GRAVITY = 0.1
-JUMP_HEIGHT = 150  # временно, использовал для создания блоков, когда игрока будешь делать поменяй, блоки подстроятся
+GRAVITY = 0.25
+JUMP_HEIGHT = 75  # временно, использовал для создания блоков, когда игрока будешь делать поменяй, блоки подстроятся
 
 pygame.display.set_caption('Once upon a castle')
 pygame.display.set_icon(pygame.image.load('data/player.png'))
@@ -21,7 +21,8 @@ dynamic_block = pygame.sprite.Group()
 start_sprites = pygame.sprite.Group()
 crashed_block = pygame.sprite.Group()
 wall = pygame.sprite.Group()
-players = pygame.sprite.Group()
+player = pygame.sprite.Group()
+all_sprites = pygame.sprite.Group()
 
 
 def load_image(name, colorkey=None):
@@ -56,8 +57,27 @@ def start_screen():
     block.image = pygame.transform.scale(load_image('static_block.png'), (75, 25))
     block.rect = block.image.get_rect()
     block.rect.x, block.rect.y = 250, 450
-    # игрок
-    StartScreenPlayer((block.rect.x, block.rect.y))
+    # персонаж
+    player = pygame.sprite.Sprite(start_sprites)
+    player.image = pygame.transform.scale(load_image('player.png'), (50, 50))
+    player.rect = player.image.get_rect()
+    player.rect.x, player.rect.y = 250, 400
+    player.rect.h = 50
+
+    # update
+
+    def update():
+        height = 0
+        spusk = False
+        if spusk is False:
+            player.rect.y -= 1
+            if player.rect.y == 300:
+                spusk = True
+        if spusk is True:
+            player.rect.y += 100
+            if player.rect.y == 400:
+                spusk = False
+
     # основной цикл
     while True:
         for event in pygame.event.get():
@@ -65,9 +85,8 @@ def start_screen():
                 terminate()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 return
+        update()
         start_sprites.draw(screen)
-        players.draw(screen)
-        players.update()
         pygame.display.flip()
         clock.tick(FPS)
         screen.blit(background, (0, 0))
@@ -77,33 +96,6 @@ def start_screen():
 def terminate():
     pygame.quit()
     sys.exit()
-
-
-class StartScreenPlayer(pygame.sprite.Sprite):
-    def __init__(self, block_pos):
-        super().__init__(players)
-        self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
-        self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = 255, 300
-        self.block_pos = block_pos
-        self.velocity = [0, 0]
-        self.gravity = GRAVITY
-        self.fl = True
-
-    def update(self):
-        if self.fl:
-            if self.rect.y >= 395:
-                self.fl = False
-            self.velocity[1] += self.gravity
-            self.rect.x += self.velocity[0]
-            self.rect.y += self.velocity[1]
-        else:
-            if self.rect.y <= 285:
-                self.fl = True
-                self.velocity = [0, 0]
-            self.velocity[1] -= self.gravity
-            self.rect.x -= self.velocity[0]
-            self.rect.y -= self.velocity[1]
 
 
 class StaticBlock(pygame.sprite.Sprite):
@@ -122,17 +114,12 @@ class DynamicBlock(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
         self.rect.h = 6
-        self.fl = True
 
     def update(self):
-        if self.fl:
-            if self.rect.x == WIDTH - self.rect.w - 25:
-                self.fl = False
+        if self.rect.x >= 25 and self.rect.x + self.rect.w <= WIDTH - 25:
             self.rect = self.rect.move(1, 0)
-        else:
-            if self.rect.x == 25:
-                self.fl = True
-            self.rect = self.rect.move(-1, 0)
+        elif self.rect.x != 25:
+            pass
 
 
 class CrashedBlock(pygame.sprite.Sprite):
@@ -144,7 +131,7 @@ class CrashedBlock(pygame.sprite.Sprite):
         self.rect.h = 6
 
     def update(self):
-        if pygame.sprite.spritecollideany(self, players):
+        if pygame.sprite.spritecollideany(self, player):
             self.kill()
             CrashedBlockRight((self.rect.x, self.rect.y))
             CrashedBlockLeft((self.rect.x, self.rect.y))
@@ -223,10 +210,10 @@ for i in range(WIDTH // 18):
     WallLeft((-(35 // 2), 35 * i))
 for i in range(WIDTH // 18):
     WallRight((WIDTH - (35 // 2), 35 * i))
-for i in range(0, HEIGHT, JUMP_HEIGHT // 2):
-    if i // (JUMP_HEIGHT // 2) == random.randint(1, HEIGHT // (JUMP_HEIGHT // 2)):
+for i in range(0, HEIGHT, JUMP_HEIGHT):
+    if i // JUMP_HEIGHT == random.randint(1, HEIGHT // JUMP_HEIGHT):
         DynamicBlock(random.randint(25, WIDTH - 85), i)
-    elif i // (JUMP_HEIGHT // 2) == random.randint(1, HEIGHT // (JUMP_HEIGHT // 2)):
+    elif i // JUMP_HEIGHT == random.randint(1, HEIGHT // JUMP_HEIGHT):
         CrashedBlock(random.randint(25, WIDTH - 85), i)
     else:
         StaticBlock(random.randint(25, WIDTH - 85), i)
