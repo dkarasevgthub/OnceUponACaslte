@@ -8,7 +8,7 @@ pygame.init()
 
 WIDTH = 400
 HEIGHT = 600
-FPS = 60
+FPS = 100
 GRAVITY = 0.25
 JUMP_HEIGHT = 75  # временно, использовал для создания блоков, когда игрока будешь делать поменяй, блоки подстроятся
 
@@ -22,6 +22,7 @@ start_sprites = pygame.sprite.Group()
 crashed_block = pygame.sprite.Group()
 wall = pygame.sprite.Group()
 player = pygame.sprite.Group()
+all_sprites = pygame.sprite.Group()
 
 
 def load_image(name, colorkey=None):
@@ -56,6 +57,25 @@ def start_screen():
     block.image = pygame.transform.scale(load_image('static_block.png'), (75, 25))
     block.rect = block.image.get_rect()
     block.rect.x, block.rect.y = 250, 450
+    # персонаж
+    player = pygame.sprite.Sprite(start_sprites)
+    player.image = pygame.transform.scale(load_image('player.png'), (50, 50))
+    player.rect = player.image.get_rect()
+    player.rect.x, player.rect.y = 250, 400
+    player.rect.h = 50
+    # update
+
+    def update():
+        height = 0
+        spusk = False
+        if spusk is False:
+            player.rect.y -= 1
+            if player.rect.y == 300:
+                spusk = True
+        if spusk is True:
+            player.rect.y += 100
+            if player.rect.y == 400:
+                spusk = False
     # основной цикл
     while True:
         for event in pygame.event.get():
@@ -63,9 +83,12 @@ def start_screen():
                 terminate()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 return
+        update()
         start_sprites.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)
+        screen.blit(background, (0, 0))
+        screen.blit(text, text_rect)
 
 
 def terminate():
