@@ -1,7 +1,6 @@
 import os
 import random
 import sys
-
 import pygame
 
 pygame.init()
@@ -227,26 +226,32 @@ class Player(pygame.sprite.Sprite):
         self.block_pos = block_pos
         self.velocity = [0, 0]
         self.gravity = GRAVITY
-        self.x = self.rect.x
-        self.y = self.rect.y
+        self.up = True
+        self.height = 0
 
     def update(self):
+        if self.up:
+            if self.height < JUMP_HEIGHT:
+                self.height += 1
+                self.rect.y -= 1
+            else:
+                self.up = False
+        else:
+            self.height -= 1
+            self.rect.y += 1
         if pygame.sprite.spritecollideany(self, static_block) or pygame.sprite.spritecollideany(
                 self, dynamic_block):
-            self.velocity = [0, 0]
             self.moving_up()
-        else:
-            self.moving_down()
+        if pygame.sprite.spritecollideany(self, wall):
+            if self.rect.x < 300:
+                self.rect.x += 5
+            else:
+                self.rect.x -= 5
 
     def moving_up(self):
-        self.collide_pos_y = self.rect.y
-        while self.rect.y <= self.collide_pos_y + JUMP_HEIGHT:
-            self.velocity[1] -= self.gravity
-            self.rect.x -= self.velocity[0]
-            self.rect.y -= self.velocity[1]
-
-    def moving_down(self):
-        pass
+        if self.up is False:
+            self.height = 0
+            self.up = True
 
     def left(self, x):
         self.rect.x -= x
@@ -270,7 +275,7 @@ for i in range(0, HEIGHT - JUMP_HEIGHT // 2, JUMP_HEIGHT // 2):
         StaticBlock(random.randint(25, WIDTH - 85), i)
 first_block_pos_x = random.randint(25, WIDTH - 85)
 StaticBlock(first_block_pos_x, HEIGHT - JUMP_HEIGHT // 2)
-hero = Player((first_block_pos_x, (HEIGHT - JUMP_HEIGHT // 2) - 100))
+hero = Player((first_block_pos_x, (HEIGHT - JUMP_HEIGHT // 2) - 55))
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
