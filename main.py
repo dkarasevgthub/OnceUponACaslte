@@ -223,33 +223,30 @@ class Player(pygame.sprite.Sprite):
         super().__init__(player)
         self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
         self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = 175, 400
+        self.rect.x, self.rect.y = block_pos
         self.block_pos = block_pos
         self.velocity = [0, 0]
         self.gravity = GRAVITY
-        self.up = True
-        self.height = 0
         self.x = self.rect.x
         self.y = self.rect.y
 
     def update(self):
-        if self.up:
-            if self.height < 50:
-                self.height += 1
-                self.velocity[1] -= self.gravity
-                self.rect.x -= self.velocity[0]
-                self.rect.y -= self.velocity[1]
-            else:
-                self.up = False
+        if pygame.sprite.spritecollideany(self, static_block) or pygame.sprite.spritecollideany(
+                self, dynamic_block):
+            self.velocity = [0, 0]
+            self.moving_up()
         else:
-            if self.height > 0:
-                self.height -= 1
-                self.velocity[1] += self.gravity
-                self.rect.x += self.velocity[0]
-                self.rect.y += self.velocity[1]
-            else:
-                self.up = True
-                self.velocity = [0, 0]
+            self.moving_down()
+
+    def moving_up(self):
+        self.collide_pos_y = self.rect.y
+        while self.rect.y <= self.collide_pos_y + JUMP_HEIGHT:
+            self.velocity[1] -= self.gravity
+            self.rect.x -= self.velocity[0]
+            self.rect.y -= self.velocity[1]
+
+    def moving_down(self):
+        pass
 
     def left(self, x):
         self.rect.x -= x
@@ -264,14 +261,16 @@ for i in range(WIDTH // 18):
     WallLeft((-(35 // 2), 35 * i))
 for i in range(WIDTH // 18):
     WallRight((WIDTH - (35 // 2), 35 * i))
-for i in range(0, HEIGHT, JUMP_HEIGHT // 2):
+for i in range(0, HEIGHT - JUMP_HEIGHT // 2, JUMP_HEIGHT // 2):
     if i // (JUMP_HEIGHT // 2) == random.randint(1, HEIGHT // (JUMP_HEIGHT // 2)):
         DynamicBlock(random.randint(25, WIDTH - 85), i)
     elif i // (JUMP_HEIGHT // 2) == random.randint(1, HEIGHT // (JUMP_HEIGHT // 2)):
         CrashedBlock(random.randint(25, WIDTH - 85), i)
     else:
         StaticBlock(random.randint(25, WIDTH - 85), i)
-hero = Player((0, 0))
+first_block_pos_x = random.randint(25, WIDTH - 85)
+StaticBlock(first_block_pos_x, HEIGHT - JUMP_HEIGHT // 2)
+hero = Player((first_block_pos_x, (HEIGHT - JUMP_HEIGHT // 2) - 100))
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
