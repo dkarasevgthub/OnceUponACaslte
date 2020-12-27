@@ -21,7 +21,8 @@ dynamic_block = pygame.sprite.Group()
 start_sprites = pygame.sprite.Group()
 crashed_block = pygame.sprite.Group()
 wall = pygame.sprite.Group()
-players = pygame.sprite.Group()
+start_player = pygame.sprite.Group()
+player = pygame.sprite.Group()
 
 
 def load_image(name, colorkey=None):
@@ -66,8 +67,8 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 return
         start_sprites.draw(screen)
-        players.draw(screen)
-        players.update()
+        start_player.draw(screen)
+        start_player.update()
         pygame.display.flip()
         clock.tick(FPS)
         screen.blit(background, (0, 0))
@@ -81,7 +82,7 @@ def terminate():
 
 class StartScreenPlayer(pygame.sprite.Sprite):
     def __init__(self, block_pos):
-        super().__init__(players)
+        super().__init__(start_player)
         self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = 255, 300
@@ -144,7 +145,7 @@ class CrashedBlock(pygame.sprite.Sprite):
         self.rect.h = 6
 
     def update(self):
-        if pygame.sprite.spritecollideany(self, players):
+        if pygame.sprite.spritecollideany(self, player):
             self.kill()
             CrashedBlockRight((self.rect.x, self.rect.y))
             CrashedBlockLeft((self.rect.x, self.rect.y))
@@ -217,6 +218,37 @@ class Camera:
         self.dy = -(target.rect.y + target.rect.h // 2 - HEIGHT // 2)
 
 
+class Player(pygame.sprite.Sprite):
+    def __init__(self, block_pos):
+        super().__init__(player)
+        self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = 175, 400
+        self.block_pos = block_pos
+        self.velocity = [0, 0]
+        self.gravity = GRAVITY
+        self.up = True
+        self.height = 0
+
+    def update(self):
+        if self.up:
+            if self.height < 50:
+                self.height += 1
+                self.velocity[1] -= self.gravity
+                self.rect.x -= self.velocity[0]
+                self.rect.y -= self.velocity[1]
+            else:
+                self.up = False
+        else:
+            if self.height > 0:
+                self.height -= 1
+                self.velocity[1] += self.gravity
+                self.rect.x += self.velocity[0]
+                self.rect.y += self.velocity[1]
+            else:
+                self.up = True
+
+
 start_screen()
 running = True
 for i in range(WIDTH // 18):
@@ -230,13 +262,11 @@ for i in range(0, HEIGHT, JUMP_HEIGHT // 2):
         CrashedBlock(random.randint(25, WIDTH - 85), i)
     else:
         StaticBlock(random.randint(25, WIDTH - 85), i)
-
+Player((0, 0))
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            StaticBlock(event.pos[0], event.pos[1])
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     screen.blit(background, (0, 0))
     wall.draw(screen)
@@ -245,6 +275,8 @@ while running:
     dynamic_block.update()
     crashed_block.draw(screen)
     crashed_block.update()
+    player.draw(screen)
+    player.update()
     pygame.display.flip()
     clock.tick(FPS)
 terminate()
