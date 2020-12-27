@@ -229,6 +229,8 @@ class Player(pygame.sprite.Sprite):
         self.gravity = GRAVITY
         self.up = True
         self.height = 0
+        self.x = self.rect.x
+        self.y = self.rect.y
 
     def update(self):
         if self.up:
@@ -247,6 +249,13 @@ class Player(pygame.sprite.Sprite):
                 self.rect.y += self.velocity[1]
             else:
                 self.up = True
+                self.velocity = [0, 0]
+
+    def left(self, x):
+        self.rect.x -= x
+
+    def right(self, x):
+        self.rect.x += x
 
 
 start_screen()
@@ -262,11 +271,16 @@ for i in range(0, HEIGHT, JUMP_HEIGHT // 2):
         CrashedBlock(random.randint(25, WIDTH - 85), i)
     else:
         StaticBlock(random.randint(25, WIDTH - 85), i)
-Player((0, 0))
+hero = Player((0, 0))
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+    pressed = pygame.key.get_pressed()
+    if pressed[pygame.K_RIGHT]:
+        hero.right(5)
+    elif pressed[pygame.K_LEFT]:
+        hero.left(5)
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     screen.blit(background, (0, 0))
     wall.draw(screen)
