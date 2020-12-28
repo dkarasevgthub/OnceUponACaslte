@@ -1,5 +1,6 @@
 import os
 import random
+import sqlite3
 import sys
 
 import pygame
@@ -10,7 +11,7 @@ WIDTH = 400
 HEIGHT = 600
 FPS = 100
 GRAVITY = 0.1
-JUMP_HEIGHT = 150  # временно, использовал для создания блоков, когда игрока будешь делать поменяй, блоки подстроятся
+JUMP_HEIGHT = 150
 
 pygame.display.set_caption('Once upon a castle')
 pygame.display.set_icon(pygame.image.load('data/player.png'))
@@ -25,26 +26,27 @@ crashed_block = pygame.sprite.Group()
 wall = pygame.sprite.Group()
 start_player = pygame.sprite.Group()
 player = pygame.sprite.Group()
+all_sprites = pygame.sprite.Group()
 
 
-def load_image(name, colorkey=None):
+def load_image(name, color_key=None):
     fullname = os.path.join('data', name)
     if not os.path.isfile(fullname):
         print('Файл с изображением ' + '"' + fullname + '"' + ' не найден')
         sys.exit()
     image = pygame.image.load(fullname)
-    if colorkey is not None:
+    if color_key is not None:
         image = image.convert()
-        if colorkey == -1:
-            colorkey = image.get_at((0, 0))
-        image.set_colorkey(colorkey)
+        if color_key == -1:
+            color_key = image.get_at((0, 0))
+        image.set_colorkey(color_key)
     else:
         image = image.convert_alpha()
     return image
 
 
 def game():
-    score = 0
+    # camera = Camera()
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     for sprite in static_block:
         sprite.kill()
@@ -87,6 +89,9 @@ def game():
         player.update()
         pygame.display.flip()
         clock.tick(FPS)
+        # camera.update(hero)
+        # for sprite in all_sprites:
+        # camera.apply(sprite)
     terminate()
 
 
@@ -94,13 +99,71 @@ def score_screen():
     pass
 
 
-def save_score():
-    pass
+def save_score(name, score):
+    name = name.lower().strip()
+    exists = False
+    con = sqlite3.connect('data/score_base.db')
+    cur = con.cursor()
+    existed = []
+    for tpl in cur.execute("""SELECT name FROM score_table""").fetchall():
+        existed.append(*tpl)
+    if name in existed:
+        exists = True
+    if exists:
+        if score > cur.execute(
+                f"""SELECT best_score FROM score_table WHERE name='{name}'""").fetchall()[0][0]:
+            que = f"""UPDATE score_table
+SET last_score={score}, best_score={score}\nWHERE name='{name}'"""
+        else:
+            que = f"""UPDATE score_table\nSET last_score={score}\nWHERE name='{name}'"""
+    else:
+        string = 'score_table(name, last_score, best_score)'
+        que = f"""INSERT INTO {string} VALUES('{name}', {score}, {score})"""
+    cur.execute(que)
+    con.commit()
+    con.close()
+
+
+class InputBox:
+    def __init__(self, x, y, w, h, text=''):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.color = pygame.Color('black')
+        self.color_active = pygame.Color((150, 32, 40))
+        self.text = text
+        self.font = pygame.font.Font('data/font.ttf', 16)
+        self.txt_surface = self.font.render(text, True, self.color)
+        self.active = False
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                self.active = not self.active
+            else:
+                self.active = False
+            if self.active:
+                self.color = self.color_active
+        if event.type == pygame.KEYDOWN:
+            if self.active:
+                if event.key == pygame.K_RETURN:
+                    print(self.text)
+                    self.text = ''
+                elif event.key == pygame.K_BACKSPACE:
+                    self.text = self.text[:-1]
+                else:
+                    self.text += event.unicode
+                self.txt_surface = self.font.render(self.text, True, pygame.Color((20, 20, 20)))
+
+    def draw(self, scr):
+        scr.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 5))
+        pygame.draw.rect(scr, self.color, self.rect, 3)
+
+    def text(self):
+        return self.txt_surface
 
 
 class StartScreenPlayer(pygame.sprite.Sprite):
-    def __init__(self, player_pos, type='start'):
-        if type == 'end':
+    def __init__(self, player_pos, sort='start'):
+        if sort == 'end':
             super().__init__(end_player)
         else:
             super().__init__(start_player)
@@ -155,17 +218,17 @@ def start_screen():
     exit_image_rect.x, exit_image_rect.y = btn_rect.x, btn_rect.y + btn_rect.h + 10
     score_tab_image = pygame.transform.scale(load_image('score_tab.png'), (140, 50))
     score_tab_image_rect = score_tab_image.get_rect()
-    score_tab_image_rect.x, score_tab_image_rect.y = btn_rect.x, btn_rect.y + btn_rect.h + 10 + score_tab_image_rect.h + 5
+    score_tab_image_rect.x, score_tab_image_rect.y = \
+        btn_rect.x, btn_rect.y + btn_rect.h + 10 + score_tab_image_rect.h + 5
     # основной цикл
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if 50 <= event.pos[0] <= 190 and event.pos[1] >= 380 and \
-                        event.pos[1] <= 440:
+                if 50 <= event.pos[0] <= 190 and 380 <= event.pos[1] <= 440:
                     game()
-                if event.pos[0] >= 50 and event.pos[0] <= 190 and btn_rect.y + btn_rect.h + 10 <= \
+                if 50 <= event.pos[0] <= 190 and btn_rect.y + btn_rect.h + 10 <= \
                         event.pos[
                             1] <= btn_rect.y + btn_rect.h + 60:
                     exit()
@@ -186,14 +249,51 @@ def start_screen():
         clock.tick(FPS)
 
 
+def name_tab(score):
+    input_box = InputBox(60, 275, 280, 30)
+    back_rect = pygame.Rect(50, 200, 300, 150)
+    border_rect = pygame.Rect(48, 198, 304, 154)
+    font = pygame.font.Font('data/font.ttf', 16)
+    text = font.render("Enter name", True, pygame.Color((20, 20, 20)))
+    text_rect = text.get_rect()
+    text_rect.x = back_rect.x + 70
+    text_rect.y = back_rect.y + 20
+    close_image = pygame.transform.scale(load_image('close.png'), (20, 20))
+    close_image_rect = close_image.get_rect()
+    close_image_rect.x, close_image_rect.y = 325, text_rect.y - 15
+    ok_image = pygame.transform.scale(load_image('ok.png'), (80, 30))
+    ok_image_rect = ok_image.get_rect()
+    ok_image_rect.x, ok_image_rect.y = 160, 313
+    input_box.draw(screen)
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if close_image_rect.collidepoint(event.pos):
+                    return
+                if ok_image_rect.collidepoint(event.pos):
+                    if input_box.text != '':
+                        save_score(input_box.text, score)
+                        return
+            input_box.handle_event(event)
+        pygame.draw.rect(screen, pygame.Color((20, 20, 20)), border_rect, 0)
+        pygame.draw.rect(screen, pygame.Color((220, 220, 115)), back_rect, 0)
+        screen.blit(text, text_rect)
+        screen.blit(close_image, close_image_rect)
+        screen.blit(ok_image, ok_image_rect)
+        input_box.draw(screen)
+        pygame.display.flip()
+
+
 StartScreenPlayer((295, 300), 'end')
 
 
 def game_over_screen(score):
     # очки
     font = pygame.font.Font('data/font.ttf', 16)
-    text = font.render('Score: ' + str(score) + ' points', True, pygame.Color((20, 20, 20)))
-    text_rect = text.get_rect()
+    text_score = font.render('Score: ' + str(score) + ' points', True, pygame.Color((20, 20, 20)))
+    text_rect = text_score.get_rect()
     text_rect.x, text_rect.y = 30, 100
     # фон
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
@@ -207,12 +307,13 @@ def game_over_screen(score):
     image_rect.x, image_rect.y = WIDTH // 2 - image_rect.w // 2, HEIGHT // 2 - image_rect.h
     restart_image = pygame.transform.scale(load_image('restart.png'), (140, 60))
     restart_image_rect = restart_image.get_rect()
-    restart_image_rect.x, restart_image_rect.y = WIDTH // 2 - restart_image_rect.w // 2 - \
-                                                 15, HEIGHT // 2 - restart_image_rect.h // 2 + 125
+    restart_image_rect.x, restart_image_rect.y = \
+        WIDTH // 2 - restart_image_rect.w // 2 - 15, HEIGHT // 2 - restart_image_rect.h // 2 + 125
     exit_image = pygame.transform.scale(load_image('exit.png'), (110, 42))
     exit_image_rect = exit_image.get_rect()
-    exit_image_rect.x, exit_image_rect.y = WIDTH // 2 - exit_image_rect.w // 2, HEIGHT // 2 - \
-                                           exit_image_rect.h // 2 + 125 + restart_image_rect.h + 5
+    exit_image_rect.x, exit_image_rect.y = \
+        WIDTH // 2 - exit_image_rect.w // 2, HEIGHT // 2 - exit_image_rect.h // \
+        2 + 125 + restart_image_rect.h + 5
     score_tab_image = pygame.transform.scale(load_image('score_tab.png'), (110, 42))
     score_tab_image_rect = score_tab_image.get_rect()
     score_tab_image_rect.x, score_tab_image_rect.y = \
@@ -229,46 +330,27 @@ def game_over_screen(score):
             if event.type == pygame.QUIT:
                 terminate()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.pos[0] >= WIDTH // 2 - restart_image_rect.w // 2 + 20 and event.pos[
-                    0] <= WIDTH // 2 - restart_image_rect.w // 2 - 15 + \
-                        restart_image_rect.w and \
-                        event.pos[1] >= HEIGHT // 2 - restart_image_rect.h // 2 + 138 and \
-                        event.pos[
-                            1] <= HEIGHT // 2 - restart_image_rect.h // 2 + 125 + \
-                        restart_image_rect.h:
+                if restart_image_rect.collidepoint(event.pos):
                     screen.fill((0, 0, 0))
                     start_screen()
-                if event.pos[0] >= save_image_rect.x and event.pos[
-                    0] <= save_image_rect.x + save_image_rect.w and event.pos[
-                    1] >= save_image_rect.y and event.pos[
-                    1] <= save_image_rect.y + save_image_rect.h:
-                    save_score()
-                if event.pos[0] >= WIDTH // 2 - exit_image_rect.w // 2 and event.pos[
-                    0] <= WIDTH // 2 - exit_image_rect.w // 2 + exit_image_rect.w and \
-                        HEIGHT // 2 - exit_image_rect.h // 2 + 125 + \
-                        restart_image_rect.h + 5 <= event.pos[
-                    1] <= HEIGHT // 2 - exit_image_rect.h // 2 + 125 + \
-                        restart_image_rect.h + 5 + exit_image_rect.h:
+                if save_image_rect.collidepoint(event.pos):
+                    name_tab(score)
+                if exit_image_rect.collidepoint(event.pos):
                     exit()
-                if event.pos[0] >= WIDTH // 2 - exit_image_rect.w // 2 and event.pos[
-                    0] <= WIDTH // 2 - exit_image_rect.w // 2 + score_tab_image_rect.w and \
-                        HEIGHT // 2 - exit_image_rect.h // 2 + 125 + \
-                        restart_image_rect.h + exit_image_rect.h + 15 <= event.pos[
-                    1] <= HEIGHT // 2 - exit_image_rect.h // 2 + 125 + \
-                        restart_image_rect.h + exit_image_rect.h + 15 + score_tab_image_rect.h:
+                if score_tab_image_rect.collidepoint(event.pos):
                     score_screen()
         end_sprites.draw(screen)
         end_player.draw(screen)
         end_player.update()
-        pygame.display.flip()
-        clock.tick(FPS)
         screen.blit(background, (0, 0))
         screen.blit(save_image, save_image_rect)
-        screen.blit(text, text_rect)
+        screen.blit(text_score, text_rect)
         screen.blit(exit_image, exit_image_rect)
         screen.blit(restart_image, restart_image_rect)
         screen.blit(game_over_image, image_rect)
         screen.blit(score_tab_image, score_tab_image_rect)
+        pygame.display.flip()
+        clock.tick(FPS)
 
 
 def terminate():
@@ -278,7 +360,7 @@ def terminate():
 
 class StaticBlock(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super().__init__(static_block)
+        super().__init__(static_block, all_sprites)
         self.image = pygame.transform.scale(load_image('static_block.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
@@ -287,7 +369,7 @@ class StaticBlock(pygame.sprite.Sprite):
 
 class DynamicBlock(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super().__init__(dynamic_block)
+        super().__init__(dynamic_block, all_sprites)
         self.image = pygame.transform.scale(load_image('dynamic_block.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
@@ -307,7 +389,7 @@ class DynamicBlock(pygame.sprite.Sprite):
 
 class CrashedBlock(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super().__init__(crashed_block)
+        super().__init__(crashed_block, all_sprites)
         self.image = pygame.transform.scale(load_image('crashed_block.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
@@ -375,21 +457,18 @@ class WallRight(pygame.sprite.Sprite):
 
 class Camera:
     def __init__(self):
-        self.dx = 0
         self.dy = 0
 
     def apply(self, obj):
-        obj.rect.x += self.dx
         obj.rect.y += self.dy
 
     def update(self, target):
-        self.dx = -(target.rect.x + target.rect.w // 2 - WIDTH // 2)
         self.dy = -(target.rect.y + target.rect.h // 2 - HEIGHT // 2)
 
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, block_pos):
-        super().__init__(player)
+        super().__init__(player, all_sprites)
         self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = block_pos
