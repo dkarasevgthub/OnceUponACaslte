@@ -9,7 +9,7 @@ pygame.init()
 
 WIDTH = 400
 HEIGHT = 600
-FPS = 100
+FPS = 80
 GRAVITY = 0.1
 JUMP_HEIGHT = 150
 
@@ -46,7 +46,7 @@ def load_image(name, color_key=None):
 
 
 def game():
-    # camera = Camera()
+    camera = Camera(0)
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     for sprite in static_block:
         sprite.kill()
@@ -89,9 +89,9 @@ def game():
         player.update()
         pygame.display.flip()
         clock.tick(FPS)
-        # camera.update(hero)
-        # for sprite in all_sprites:
-        # camera.apply(sprite)
+        camera.update(hero)
+        for sprite in all_sprites:
+            camera.apply(sprite)
     terminate()
 
 
@@ -456,8 +456,8 @@ class WallRight(pygame.sprite.Sprite):
 
 
 class Camera:
-    def __init__(self):
-        self.dy = 0
+    def __init__(self, dy):
+        self.dy = dy
 
     def apply(self, obj):
         obj.rect.y += self.dy
@@ -473,11 +473,11 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = block_pos
         self.block_pos = block_pos
-        self.velocity = [0, 0]
-        self.gravity = GRAVITY
         self.up = True
+        self.isJump = True
         self.height = 0
         self.score = 0
+        self.jumpCount = 10
 
     def update(self):
         if self.rect.y > HEIGHT - self.rect.h + 1:
@@ -485,11 +485,15 @@ class Player(pygame.sprite.Sprite):
             game_over_screen(int(self.score / 100))
         else:
             if self.up:
-                if self.height < JUMP_HEIGHT:
-                    self.height += 1
-                    self.rect.y -= 1
+                if self.jumpCount >= -10:
+                    neg = 1
+                    if self.jumpCount < 0:
+                        neg = -1
+                    self.rect.y -= (self.jumpCount ** 2) * 0.2 * neg
+                    self.jumpCount -= 1
                 else:
                     self.up = False
+                    self.jumpCount = 10
             else:
                 self.height -= 1
                 self.rect.y += 1
@@ -507,14 +511,25 @@ class Player(pygame.sprite.Sprite):
 
     def moving_up(self):
         if self.up is False:
-            self.height = 0
+            self.jumpCount = 10
             self.up = True
+            self.neg = 1
+        else:
+            self.jumpCount = 10
+            self.up = True
+            self.neg = 1
 
     def left(self, x):
         self.rect.x -= x
 
     def right(self, x):
         self.rect.x += x
+
+    def move(self):
+        if self.up:
+            return True
+        else:
+            return False
 
 
 start_screen()
