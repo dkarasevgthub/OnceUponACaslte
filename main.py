@@ -473,11 +473,9 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = block_pos
         self.block_pos = block_pos
-        self.up = True
-        self.isJump = True
-        self.height = 0
         self.score = 0
-        self.jumpCount = 10
+        self.up = True
+        self.height = 0
 
     def update(self):
         if self.rect.y > HEIGHT - self.rect.h + 1:
@@ -485,18 +483,17 @@ class Player(pygame.sprite.Sprite):
             game_over_screen(int(self.score / 100))
         else:
             if self.up:
-                if self.jumpCount >= -10:
-                    neg = 1
-                    if self.jumpCount < 0:
-                        neg = -1
-                    self.rect.y -= (self.jumpCount ** 2) * 0.2 * neg
-                    self.jumpCount -= 1
+                if self.height <= 15:
+                    self.height += 0.5
+                    self.rect.y -= self.height
                 else:
                     self.up = False
-                    self.jumpCount = 10
             else:
-                self.height -= 1
-                self.rect.y += 1
+                self.height -= 0.1
+                if self.height >= 0:
+                    self.rect.y += self.height
+                else:
+                    self.rect.y -= self.height
             if pygame.sprite.spritecollideany(self, static_block):
                 self.moving_up()
                 self.score += 100
@@ -508,16 +505,13 @@ class Player(pygame.sprite.Sprite):
                     self.rect.x += 5
                 else:
                     self.rect.x -= 5
+        pygame.display.flip()
+        clock.tick(FPS)
 
     def moving_up(self):
         if self.up is False:
-            self.jumpCount = 10
+            self.height = 0
             self.up = True
-            self.neg = 1
-        else:
-            self.jumpCount = 10
-            self.up = True
-            self.neg = 1
 
     def left(self, x):
         self.rect.x -= x
@@ -526,10 +520,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.x += x
 
     def move(self):
-        if self.up:
-            return True
-        else:
-            return False
+        pass
 
 
 start_screen()
