@@ -6,7 +6,14 @@ import sys
 import pygame
 
 pygame.init()
-
+button = pygame.mixer.Sound('data/button.wav')
+jump = pygame.mixer.Sound('data/jump.wav')
+crash = pygame.mixer.Sound('data/crash.mp3')
+game_over = pygame.mixer.Sound('data/game_over.wav')
+game_over.set_volume(0.5)
+crash.set_volume(0.02)
+jump.set_volume(0.1)
+button.set_volume(0.05)
 WIDTH = 400
 HEIGHT = 600
 FPS = 80
@@ -46,7 +53,7 @@ def load_image(name, color_key=None):
 
 
 def game():
-    camera = Camera(0)
+    # camera = Camera(0)
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     for sprite in static_block:
         sprite.kill()
@@ -75,9 +82,9 @@ def game():
                 running = False
         pressed = pygame.key.get_pressed()
         if pressed[pygame.K_RIGHT]:
-            hero.right(5)
+            hero.right()
         elif pressed[pygame.K_LEFT]:
-            hero.left(5)
+            hero.left()
         screen.blit(background, (0, 0))
         wall.draw(screen)
         static_block.draw(screen)
@@ -89,9 +96,9 @@ def game():
         player.update()
         pygame.display.flip()
         clock.tick(FPS)
-        camera.update(hero)
-        for sprite in all_sprites:
-            camera.apply(sprite)
+        # camera.update(hero)
+        # for sprite in all_sprites:
+        #camera.apply(sprite)
     terminate()
 
 
@@ -177,6 +184,7 @@ class StartScreenPlayer(pygame.sprite.Sprite):
     def update(self):
         if self.fl:
             if self.rect.y >= 395:
+                jump.play()
                 self.fl = False
             self.velocity[1] += self.gravity
             self.rect.x += self.velocity[0]
@@ -198,8 +206,8 @@ def start_screen():
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     screen.blit(background, (0, 0))
     # текст
-    font = pygame.font.Font('data/font.ttf', 20)
-    text = font.render("Have fun!", True, pygame.Color((20, 20, 20)))
+    font = pygame.font.Font('data/font.ttf', 17)
+    text = font.render("Once upon a castle...", True, pygame.Color((20, 20, 20)))
     text_rect = text.get_rect()
     text_rect.x = 30
     text_rect.y = 90
@@ -226,16 +234,15 @@ def start_screen():
             if event.type == pygame.QUIT:
                 terminate()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if 50 <= event.pos[0] <= 190 and 380 <= event.pos[1] <= 440:
+                if btn_rect.collidepoint(event.pos):
+                    button.play()
                     game()
-                if 50 <= event.pos[0] <= 190 and btn_rect.y + btn_rect.h + 10 <= \
-                        event.pos[
-                            1] <= btn_rect.y + btn_rect.h + 60:
+                if exit_image_rect.collidepoint(event.pos):
+                    button.play()
+                    pygame.time.delay(300)
                     exit()
-                if event.pos[0] >= 50 and event.pos[
-                    0] <= 190 and btn_rect.y + btn_rect.h + 15 + score_tab_image_rect.h <= \
-                        event.pos[
-                            1] <= btn_rect.y + btn_rect.h + 15 + score_tab_image_rect.h + 50:
+                if score_tab_image_rect.collidepoint(event.pos):
+                    button.play()
                     score_screen()
         screen.blit(background, (0, 0))
         screen.blit(text, text_rect)
@@ -271,8 +278,10 @@ def name_tab(score):
                 exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if close_image_rect.collidepoint(event.pos):
+                    button.play()
                     return
                 if ok_image_rect.collidepoint(event.pos):
+                    button.play()
                     if input_box.text != '':
                         save_score(input_box.text, score)
                         return
@@ -331,17 +340,19 @@ def game_over_screen(score):
                 terminate()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if restart_image_rect.collidepoint(event.pos):
+                    button.play()
                     screen.fill((0, 0, 0))
                     start_screen()
                 if save_image_rect.collidepoint(event.pos):
+                    button.play()
                     name_tab(score)
                 if exit_image_rect.collidepoint(event.pos):
+                    button.play()
+                    pygame.time.delay(300)
                     exit()
                 if score_tab_image_rect.collidepoint(event.pos):
+                    button.play()
                     score_screen()
-        end_sprites.draw(screen)
-        end_player.draw(screen)
-        end_player.update()
         screen.blit(background, (0, 0))
         screen.blit(save_image, save_image_rect)
         screen.blit(text_score, text_rect)
@@ -349,6 +360,9 @@ def game_over_screen(score):
         screen.blit(restart_image, restart_image_rect)
         screen.blit(game_over_image, image_rect)
         screen.blit(score_tab_image, score_tab_image_rect)
+        end_sprites.draw(screen)
+        end_player.draw(screen)
+        end_player.update()
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -398,6 +412,7 @@ class CrashedBlock(pygame.sprite.Sprite):
     def update(self):
         if pygame.sprite.spritecollideany(self, player):
             self.kill()
+            crash.play()
             CrashedBlockRight((self.rect.x, self.rect.y))
             CrashedBlockLeft((self.rect.x, self.rect.y))
 
@@ -410,7 +425,7 @@ class CrashedBlockRight(pygame.sprite.Sprite):
         self.screen = (0, 0, WIDTH, HEIGHT)
         self.velocity = [1, -1]
         self.rect.x, self.rect.y = pos
-        self.gravity = GRAVITY
+        self.gravity = 0.5
 
     def update(self):
         self.velocity[1] += self.gravity
@@ -428,7 +443,7 @@ class CrashedBlockLeft(pygame.sprite.Sprite):
         self.screen = (0, 0, WIDTH, HEIGHT)
         self.velocity = [-1, -1]
         self.rect.x, self.rect.y = pos
-        self.gravity = GRAVITY
+        self.gravity = 0.5
 
     def update(self):
         self.velocity[1] += self.gravity
@@ -476,11 +491,13 @@ class Player(pygame.sprite.Sprite):
         self.score = 0
         self.up = True
         self.height = 0
+        self.moving_range = 5
 
     def update(self):
         if self.rect.y > HEIGHT - self.rect.h + 1:
             self.kill()
-            game_over_screen(int(self.score / 100))
+            game_over.play()
+            game_over_screen(self.score)
         else:
             if self.up:
                 if self.height <= 15:
@@ -496,28 +513,31 @@ class Player(pygame.sprite.Sprite):
                     self.rect.y -= self.height
             if pygame.sprite.spritecollideany(self, static_block):
                 self.moving_up()
-                self.score += 100
             if pygame.sprite.spritecollideany(self, dynamic_block):
                 self.moving_up()
-                self.score += 150
             if pygame.sprite.spritecollideany(self, wall):
-                if self.rect.x < 300:
-                    self.rect.x += 5
+                self.moving_range = 0
+                if self.rect.x >= WIDTH // 2:
+                    if pygame.key.get_pressed()[pygame.K_LEFT]:
+                        self.moving_range = 5
                 else:
-                    self.rect.x -= 5
+                    if pygame.key.get_pressed()[pygame.K_RIGHT]:
+                        self.moving_range = 5
         pygame.display.flip()
         clock.tick(FPS)
 
     def moving_up(self):
         if self.up is False:
+            jump.play()
+            self.score += 10
             self.height = 0
             self.up = True
 
-    def left(self, x):
-        self.rect.x -= x
+    def left(self):
+        self.rect.x -= self.moving_range
 
-    def right(self, x):
-        self.rect.x += x
+    def right(self):
+        self.rect.x += self.moving_range
 
     def move(self):
         pass
