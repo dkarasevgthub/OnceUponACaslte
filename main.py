@@ -8,11 +8,15 @@ import pygame
 pygame.init()
 button = pygame.mixer.Sound('data/button.wav')
 jump = pygame.mixer.Sound('data/jump.wav')
+jump_menu = pygame.mixer.Sound('data/jump.wav')
 crash = pygame.mixer.Sound('data/crash.mp3')
 game_over = pygame.mixer.Sound('data/game_over.wav')
+menu_music = pygame.mixer.Sound('data/menu_music.mp3')
 game_over.set_volume(0.5)
 crash.set_volume(0.02)
 jump.set_volume(0.1)
+jump_menu.set_volume(0.005)
+menu_music.set_volume(0.025)
 button.set_volume(0.05)
 WIDTH = 400
 HEIGHT = 600
@@ -181,11 +185,12 @@ class StartScreenPlayer(pygame.sprite.Sprite):
         self.velocity = [0, 0]
         self.gravity = GRAVITY
         self.fl = True
+        menu_music.play()
 
     def update(self):
         if self.fl:
             if self.rect.y >= 395:
-                jump.play()
+                jump_menu.play()
                 self.fl = False
             self.velocity[1] += self.gravity
             self.rect.x += self.velocity[0]
@@ -237,6 +242,7 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if btn_rect.collidepoint(event.pos):
                     button.play()
+                    menu_music.stop()
                     game()
                 if exit_image_rect.collidepoint(event.pos):
                     button.play()
@@ -334,6 +340,7 @@ def game_over_screen(score):
     block.image = pygame.transform.scale(load_image('static_block.png'), (75, 25))
     block.rect = block.image.get_rect()
     block.rect.x, block.rect.y = 290, 450
+    menu_music.play()
     # основной цикл
     while True:
         for event in pygame.event.get():
