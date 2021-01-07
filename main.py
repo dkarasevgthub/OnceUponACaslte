@@ -53,7 +53,7 @@ def load_image(name, color_key=None):
 
 
 def game():
-    # camera = Camera(0)
+    camera = Camera()
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     for sprite in static_block:
         sprite.kill()
@@ -96,9 +96,10 @@ def game():
         player.update()
         pygame.display.flip()
         clock.tick(FPS)
-        # camera.update(hero)
-        # for sprite in all_sprites:
-        #camera.apply(sprite)
+        if hero.go_camera is True:
+            camera.update(hero)
+            for sprite in all_sprites:
+                camera.apply(sprite)
     terminate()
 
 
@@ -471,8 +472,8 @@ class WallRight(pygame.sprite.Sprite):
 
 
 class Camera:
-    def __init__(self, dy):
-        self.dy = dy
+    def __init__(self):
+        self.dy = 0
 
     def apply(self, obj):
         obj.rect.y += self.dy
@@ -492,8 +493,10 @@ class Player(pygame.sprite.Sprite):
         self.up = True
         self.height = 0
         self.moving_range = 5
+        self.go_camera = True
 
     def update(self):
+        pygame.time.delay(1)
         if self.rect.y > HEIGHT - self.rect.h + 1:
             self.kill()
             game_over.play()
@@ -505,6 +508,7 @@ class Player(pygame.sprite.Sprite):
                     self.rect.y -= self.height
                 else:
                     self.up = False
+                    self.go_camera = False
             else:
                 self.height -= 0.1
                 if self.height >= 0:
@@ -530,17 +534,20 @@ class Player(pygame.sprite.Sprite):
         if self.up is False:
             jump.play()
             self.score += 10
-            self.height = 0
             self.up = True
+            self.go_camera = False
+            if not 13.8 > self.height > 13.6:
+                self.go_camera = True
+            self.height = 0
+        else:
+            if self.height > 3:
+                self.go_camera = True
 
     def left(self):
         self.rect.x -= self.moving_range
 
     def right(self):
         self.rect.x += self.moving_range
-
-    def move(self):
-        pass
 
 
 start_screen()
