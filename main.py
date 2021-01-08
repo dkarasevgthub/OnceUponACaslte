@@ -20,9 +20,11 @@ menu_music.set_volume(0.025)
 button.set_volume(0.05)
 WIDTH = 400
 HEIGHT = 600
-FPS = 80
+PIXELS = 350
+FPS = 100
 GRAVITY = 0.1
 JUMP_HEIGHT = 150
+platforms = []
 
 pygame.display.set_caption('Once upon a castle')
 pygame.display.set_icon(pygame.image.load('data/player.png'))
@@ -38,6 +40,8 @@ wall = pygame.sprite.Group()
 start_player = pygame.sprite.Group()
 player = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
+all_platforms = pygame.sprite.Group()
+player_group = pygame.sprite.Group()
 
 
 def load_image(name, color_key=None):
@@ -57,7 +61,8 @@ def load_image(name, color_key=None):
 
 
 def game():
-    camera = Camera()
+    hero = Player()
+    player_group.add(hero)
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     for sprite in static_block:
         sprite.kill()
@@ -79,7 +84,6 @@ def game():
             StaticBlock(random.randint(25, WIDTH - 85), i)
     first_block_pos_x = random.randint(25, WIDTH - 85)
     StaticBlock(first_block_pos_x, HEIGHT - JUMP_HEIGHT // 2)
-    hero = Player((first_block_pos_x, (HEIGHT - JUMP_HEIGHT // 2) - 55))
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -96,14 +100,12 @@ def game():
         dynamic_block.update()
         crashed_block.draw(screen)
         crashed_block.update()
-        player.draw(screen)
-        player.update()
+        all_platforms.update()
+        player_group.update()
+        all_platforms.draw(screen)
+        player_group.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)
-        if hero.go_camera is True:
-            camera.update(hero)
-            for sprite in all_sprites:
-                camera.apply(sprite)
     terminate()
 
 
@@ -382,7 +384,7 @@ def terminate():
 
 class StaticBlock(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super().__init__(static_block, all_sprites)
+        super().__init__(static_block, all_sprites, all_platforms)
         self.image = pygame.transform.scale(load_image('static_block.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
@@ -391,7 +393,7 @@ class StaticBlock(pygame.sprite.Sprite):
 
 class DynamicBlock(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super().__init__(dynamic_block, all_sprites)
+        super().__init__(dynamic_block, all_sprites, all_platforms)
         self.image = pygame.transform.scale(load_image('dynamic_block.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
@@ -411,7 +413,7 @@ class DynamicBlock(pygame.sprite.Sprite):
 
 class CrashedBlock(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super().__init__(crashed_block, all_sprites)
+        super().__init__(crashed_block, all_sprites, all_platforms)
         self.image = pygame.transform.scale(load_image('crashed_block.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
@@ -427,7 +429,7 @@ class CrashedBlock(pygame.sprite.Sprite):
 
 class CrashedBlockRight(pygame.sprite.Sprite):
     def __init__(self, pos):
-        super().__init__(crashed_block)
+        super().__init__(crashed_block, all_platforms)
         self.image = pygame.transform.scale(load_image('crashed_block_right.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.screen = (0, 0, WIDTH, HEIGHT)
@@ -445,7 +447,7 @@ class CrashedBlockRight(pygame.sprite.Sprite):
 
 class CrashedBlockLeft(pygame.sprite.Sprite):
     def __init__(self, pos):
-        super().__init__(crashed_block)
+        super().__init__(crashed_block, all_platforms)
         self.image = pygame.transform.scale(load_image('crashed_block_left.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.screen = (0, 0, WIDTH, HEIGHT)
@@ -478,77 +480,49 @@ class WallRight(pygame.sprite.Sprite):
         self.rect.x, self.rect.y = pos
 
 
-class Camera:
-    def __init__(self):
-        self.dy = 0
-
-    def apply(self, obj):
-        obj.rect.y += self.dy
-
-    def update(self, target):
-        self.dy = -(target.rect.y + target.rect.h // 2 - HEIGHT // 2)
-
-
 class Player(pygame.sprite.Sprite):
-    def __init__(self, block_pos):
+    def __init__(self):
         super().__init__(player, all_sprites)
         self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
         self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = block_pos
-        self.block_pos = block_pos
+        self.rect.x = WIDTH // 2 - 40
+        self.rect.y = HEIGHT - 100
         self.score = 0
-        self.up = True
         self.height = 0
         self.moving_range = 5
-        self.go_camera = True
+        self.jump = False  # прыгает ли герой
+        self.flag = False  # положение по у
+        self.flag_coll = False  # соприкосновение с платформой
+        self.camera = 0  # положение камеры
+        self.camera_move = 0  # плавность камеры
 
     def update(self):
-        pygame.time.delay(1)
-        if self.rect.y > HEIGHT - self.rect.h + 1:
-            self.kill()
-            game_over.play()
-            game_over_screen(self.score)
+        if not self.flag_coll:
+            self.camera_move = 0
+            self.camera = 0
+        if self.rect.y > HEIGHT - 200 and not self.flag:
+            self.rect.y -= PIXELS / FPS
         else:
-            if self.up:
-                if self.height <= 15:
-                    self.height += 0.5
-                    self.rect.y -= self.height
-                else:
-                    self.up = False
-                    self.go_camera = False
+            if self.rect.y > HEIGHT - 100:
+                self.flag = False
             else:
-                self.height -= 0.1
-                if self.height >= 0:
-                    self.rect.y += self.height
-                else:
-                    self.rect.y -= self.height
-            if pygame.sprite.spritecollideany(self, static_block):
-                self.moving_up()
-            if pygame.sprite.spritecollideany(self, dynamic_block):
-                self.moving_up()
-            if pygame.sprite.spritecollideany(self, wall):
-                self.moving_range = 0
-                if self.rect.x >= WIDTH // 2:
-                    if pygame.key.get_pressed()[pygame.K_LEFT]:
-                        self.moving_range = 5
-                else:
-                    if pygame.key.get_pressed()[pygame.K_RIGHT]:
-                        self.moving_range = 5
-        pygame.display.flip()
-        clock.tick(FPS)
-
-    def moving_up(self):
-        if self.up is False:
-            jump.play()
-            self.score += 10
-            self.up = True
-            self.go_camera = False
-            if not 13.8 > self.height > 13.6:
-                self.go_camera = True
-            self.height = 0
+                self.flag = True
+                self.rect.y += PIXELS / FPS
+        if pygame.sprite.spritecollideany(self, all_platforms):
+            self.camera_move = 600 - pygame.sprite.spritecollideany(self, all_platforms).rect.y
+            self.flag_coll = True
+            self.jump = 1
         else:
-            if self.height > 3:
-                self.go_camera = True
+            self.jump = 0
+        if self.flag_coll:
+            self.camera = 10
+            self.camera_move -= 10
+        if self.camera_move <= 0:
+            self.flag_coll = False
+        if self.rect.y - self.camera <= 200:
+            self.camera -= 10
+        for i in all_platforms:
+            i.rect.y += self.camera
 
     def left(self):
         self.rect.x -= self.moving_range
