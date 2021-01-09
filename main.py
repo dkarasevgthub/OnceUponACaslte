@@ -20,11 +20,10 @@ menu_music.set_volume(0.025)
 button.set_volume(0.05)
 WIDTH = 400
 HEIGHT = 600
-PIXELS = 350
-FPS = 100
+PIXELS = 300
+FPS = 80
 GRAVITY = 0.1
 JUMP_HEIGHT = 150
-platforms = []
 
 pygame.display.set_caption('Once upon a castle')
 pygame.display.set_icon(pygame.image.load('data/player.png'))
@@ -61,8 +60,6 @@ def load_image(name, color_key=None):
 
 
 def game():
-    hero = Player()
-    player_group.add(hero)
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     for sprite in static_block:
         sprite.kill()
@@ -72,9 +69,9 @@ def game():
         sprite.kill()
     running = True
     for i in range(WIDTH // 18):
-        WallLeft((-(35 // 2), 35 * i))
+        WallLeft((-13, 35 * i))
     for i in range(WIDTH // 18):
-        WallRight((WIDTH - (35 // 2), 35 * i))
+        WallRight((WIDTH - 12, 35 * i))
     for i in range(0, HEIGHT - JUMP_HEIGHT // 2, JUMP_HEIGHT // 2):
         if i // (JUMP_HEIGHT // 2) == random.randint(1, HEIGHT // (JUMP_HEIGHT // 2)):
             DynamicBlock(random.randint(25, WIDTH - 85), i)
@@ -83,7 +80,9 @@ def game():
         else:
             StaticBlock(random.randint(25, WIDTH - 85), i)
     first_block_pos_x = random.randint(25, WIDTH - 85)
-    StaticBlock(first_block_pos_x, HEIGHT - JUMP_HEIGHT // 2)
+    StaticBlock(first_block_pos_x, HEIGHT - JUMP_HEIGHT // 3)
+    hero = Player(first_block_pos_x)
+    player_group.add(hero)
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -447,7 +446,7 @@ class CrashedBlockRight(pygame.sprite.Sprite):
 
 class CrashedBlockLeft(pygame.sprite.Sprite):
     def __init__(self, pos):
-        super().__init__(crashed_block, all_platforms)
+        super().__init__(crashed_block)
         self.image = pygame.transform.scale(load_image('crashed_block_left.png'), (60, 20))
         self.rect = self.image.get_rect()
         self.screen = (0, 0, WIDTH, HEIGHT)
@@ -466,7 +465,7 @@ class CrashedBlockLeft(pygame.sprite.Sprite):
 class WallLeft(pygame.sprite.Sprite):
     def __init__(self, pos):
         super().__init__(wall)
-        self.image = pygame.transform.scale(load_image('wall.png'), (35, 35))
+        self.image = pygame.transform.scale(load_image('wall.png'), (25, 35))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = pos
 
@@ -475,18 +474,18 @@ class WallRight(pygame.sprite.Sprite):
     def __init__(self, pos):
         super().__init__(wall)
         self.image = pygame.transform.rotate(
-            pygame.transform.scale(load_image('wall.png'), (35, 35)), 180)
+            pygame.transform.scale(load_image('wall.png'), (25, 35)), 180)
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = pos
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, pos_x):
         super().__init__(player, all_sprites)
         self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
         self.rect = self.image.get_rect()
-        self.rect.x = WIDTH // 2 - 40
-        self.rect.y = HEIGHT - 100
+        self.rect.x = pos_x
+        self.rect.y = HEIGHT - 55
         self.score = 0
         self.height = 0
         self.moving_range = 5
@@ -497,23 +496,31 @@ class Player(pygame.sprite.Sprite):
         self.camera_move = 0  # плавность камеры
 
     def update(self):
+        if self.rect.y > HEIGHT - self.rect.h + 1:
+            self.kill()
+            game_over.play()
+            game_over_screen(self.score)
         if not self.flag_coll:
             self.camera_move = 0
             self.camera = 0
         if self.rect.y > HEIGHT - 200 and not self.flag:
             self.rect.y -= PIXELS / FPS
         else:
-            if self.rect.y > HEIGHT - 100:
+            if self.rect.y > HEIGHT - 50:
                 self.flag = False
             else:
                 self.flag = True
                 self.rect.y += PIXELS / FPS
         if pygame.sprite.spritecollideany(self, all_platforms):
-            self.camera_move = 600 - pygame.sprite.spritecollideany(self, all_platforms).rect.y
-            self.flag_coll = True
-            self.jump = 1
+            if self.flag is True:
+                self.camera_move = 700 - pygame.sprite.spritecollideany(self, all_platforms).rect.y
+                self.flag_coll = True
+                self.jump = True
+                self.flag = False
+                self.score += 10
+                jump.play()
         else:
-            self.jump = 0
+            self.jump = False
         if self.flag_coll:
             self.camera = 10
             self.camera_move -= 10
@@ -526,9 +533,13 @@ class Player(pygame.sprite.Sprite):
 
     def left(self):
         self.rect.x -= self.moving_range
+        if pygame.sprite.spritecollideany(self, wall):
+            self.rect.x += self.moving_range
 
     def right(self):
         self.rect.x += self.moving_range
+        if pygame.sprite.spritecollideany(self, wall):
+            self.rect.x -= self.moving_range
 
 
 start_screen()
