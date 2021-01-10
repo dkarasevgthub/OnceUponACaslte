@@ -41,6 +41,7 @@ player = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 all_platforms = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
+block_types = ['static', 'dynamic', 'crashed']
 
 
 def load_image(name, color_key=None):
@@ -69,20 +70,15 @@ def game():
         sprite.kill()
     running = True
     for i in range(WIDTH // 18):
-        WallLeft((-13, 35 * i))
+        WallLeft((-11, 35 * i))
     for i in range(WIDTH // 18):
-        WallRight((WIDTH - 12, 35 * i))
-    for i in range(0, HEIGHT - JUMP_HEIGHT // 2, JUMP_HEIGHT // 2):
-        if i // (JUMP_HEIGHT // 2) == random.randint(1, HEIGHT // (JUMP_HEIGHT // 2)):
-            DynamicBlock(random.randint(25, WIDTH - 85), i)
-        elif i // (JUMP_HEIGHT // 2) == random.randint(1, HEIGHT // (JUMP_HEIGHT // 2)):
-            CrashedBlock(random.randint(25, WIDTH - 85), i)
-        else:
-            StaticBlock(random.randint(25, WIDTH - 85), i)
+        WallRight((WIDTH - 15, 35 * i))
     first_block_pos_x = random.randint(25, WIDTH - 85)
     StaticBlock(first_block_pos_x, HEIGHT - JUMP_HEIGHT // 3)
     hero = Player(first_block_pos_x)
     player_group.add(hero)
+    pos_y = 600
+    generated_blocks_count = 0
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -92,6 +88,23 @@ def game():
             hero.right()
         elif pressed[pygame.K_LEFT]:
             hero.left()
+        pos_x = random.randint(25, WIDTH - 85)
+        pos_y -= random.randint(JUMP_HEIGHT - 80, JUMP_HEIGHT)
+        if generated_blocks_count % 2 == 0:
+            block_type = block_types[random.randint(0, 2)]
+            if block_type == 'dynamic':
+                DynamicBlock(pos_x, pos_y)
+            elif block_type == 'crashed':
+                CrashedBlock(pos_x, pos_y)
+            else:
+                StaticBlock(pos_x, pos_y)
+        else:
+            block_type = block_types[random.randint(0, 2)]
+            if block_type == 'crashed':
+                DynamicBlock(pos_x, pos_y)
+            else:
+                StaticBlock(pos_x, pos_y)
+        generated_blocks_count += 1
         screen.blit(background, (0, 0))
         wall.draw(screen)
         static_block.draw(screen)
@@ -109,18 +122,118 @@ def game():
 
 
 def score_screen():
-    pass
+    menu_music.play()
+    # задний фон
+    screen.fill((0, 0, 0))
+    background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
+    screen.blit(background, (0, 0))
+    # кнопки и текст
+    back_rect = pygame.Rect(36, 120, 328, 443)
+    home_image = pygame.transform.scale(load_image('home.png'), (90, 30))
+    home_image_rect = home_image.get_rect()
+    home_image_rect.x, home_image_rect.y = back_rect.x + 120, 565
+    font = pygame.font.Font('data/font.ttf', 18)
+    title = font.render("Score Tab", True, pygame.Color((20, 20, 20)))
+    title_rect = title.get_rect()
+    title_rect.x = back_rect.x + 75
+    title_rect.y = 80
+    font = pygame.font.Font('data/font.ttf', 15)
+    table_text = font.render("Name       Best score", True, pygame.Color(20, 20, 20))
+    table_text_rect = table_text.get_rect()
+    table_text_rect.x = 45
+    table_text_rect.y = 135
+    border_rect = pygame.Rect(33, 117, 334, 449)
+    # отрисовка очков
+    con = sqlite3.connect('data/score_base.db')
+    cur = con.cursor()
+    table_info = cur.execute("""SELECT name, best_score FROM score_table""").fetchall()
+    font = pygame.font.Font('data/font.ttf', 14)
+    empty = True
+    table_texts = []
+    table_rect = []
+    text = ''
+    for i in range(len(table_info)):
+        name = table_info[i][0]
+        score = table_info[i][1]
+        if len(name) > 9:
+            name = name[:8] + '...'
+            if len(str(score)) > 10:
+                score = str(score)[:9] + '.'
+                text = font.render(f"{name} {score}", True, pygame.Color(20, 20, 20))
+        else:
+            text = font.render(f"{name} " + ' ' * (11 - len(name)) + f"{score}", True,
+                               pygame.Color(20, 20, 20))
+        text_rect = text.get_rect()
+        text_rect.x = table_text_rect.x
+        text_rect.y = table_text_rect.y + 40 * (i + 1)
+        table_rect.append(text_rect)
+        table_texts.append(text)
+    if table_rect:
+        empty = False
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if home_image_rect.collidepoint(event.pos):
+                    button.play()
+                    screen.fill((0, 0, 0))
+                    menu_music.stop()
+                    start_screen()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
+                if not empty:
+                    if table_rect[0].y == 175 or len(table_rect) <= 10:
+                        continue
+                    for elem in table_rect:
+                        elem.y += 40
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
+                if not empty:
+                    if table_rect[-1].y == 535 or len(table_rect) <= 10:
+                        continue
+                    for elem in table_rect:
+                        elem.y -= 40
+        pygame.draw.rect(screen, pygame.Color((20, 20, 20)), border_rect, 0)
+        pygame.draw.rect(screen, pygame.Color((220, 220, 115)), back_rect, 0)
+        for i in range(0, 10, 2):
+            pygame.draw.rect(screen, pygame.Color(230, 230, 150),
+                             pygame.Rect(36, 160 + 40 * i, 164, 40))
+        for i in range(0, 10, 2):
+            pygame.draw.rect(screen, pygame.Color(230, 230, 150),
+                             pygame.Rect(200, 200 + 40 * i, 164, 40))
+        pygame.draw.line(screen, pygame.Color(0, 0, 0), (36, 160), (364, 160), 2)
+        pygame.draw.line(screen, pygame.Color(0, 0, 0), (200, 120), (200, 563), 2)
+        for i in range(len(table_info)):
+            screen.blit(table_texts[i], table_rect[i])
+        pygame.draw.rect(screen, pygame.Color(220, 220, 115), pygame.Rect(36, 120, 162, 40))
+        pygame.draw.rect(screen, pygame.Color(220, 220, 115), pygame.Rect(202, 120, 162, 40))
+        screen.blit(table_text, table_text_rect)
+        screen.blit(title, title_rect)
+        screen.blit(home_image, home_image_rect)
+        if empty:
+            back_rect = pygame.Rect(50, 200, 300, 150)
+            border_rect = pygame.Rect(48, 198, 304, 154)
+            font = pygame.font.Font('data/font.ttf', 16)
+            text = font.render("Nothing here yet", True, pygame.Color((20, 20, 20)))
+            text_rect = text.get_rect()
+            text_rect.x = back_rect.x + 25
+            text_rect.y = back_rect.y + 60
+            pygame.draw.rect(screen, pygame.Color((20, 20, 20)), border_rect, 0)
+            pygame.draw.rect(screen, pygame.Color((220, 220, 115)), back_rect, 0)
+            screen.blit(text, text_rect)
+        pygame.display.flip()
+        clock.tick(FPS)
 
 
 def save_score(name, score):
-    name = name.lower().strip()
+    name = name.strip()
+    lower_name = name.lower()
     exists = False
     con = sqlite3.connect('data/score_base.db')
     cur = con.cursor()
     existed = []
     for tpl in cur.execute("""SELECT name FROM score_table""").fetchall():
         existed.append(*tpl)
-    if name in existed:
+    if name in existed or lower_name in existed:
         exists = True
     if exists:
         if score > cur.execute(
@@ -137,78 +250,9 @@ SET last_score={score}, best_score={score}\nWHERE name='{name}'"""
     con.close()
 
 
-class InputBox:
-    def __init__(self, x, y, w, h, text=''):
-        self.rect = pygame.Rect(x, y, w, h)
-        self.color = pygame.Color('black')
-        self.color_active = pygame.Color((150, 32, 40))
-        self.text = text
-        self.font = pygame.font.Font('data/font.ttf', 16)
-        self.txt_surface = self.font.render(text, True, self.color)
-        self.active = False
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.rect.collidepoint(event.pos):
-                self.active = not self.active
-            else:
-                self.active = False
-            if self.active:
-                self.color = self.color_active
-        if event.type == pygame.KEYDOWN:
-            if self.active:
-                if event.key == pygame.K_RETURN:
-                    print(self.text)
-                    self.text = ''
-                elif event.key == pygame.K_BACKSPACE:
-                    self.text = self.text[:-1]
-                else:
-                    self.text += event.unicode
-                self.txt_surface = self.font.render(self.text, True, pygame.Color((20, 20, 20)))
-
-    def draw(self, scr):
-        scr.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 5))
-        pygame.draw.rect(scr, self.color, self.rect, 3)
-
-    def text(self):
-        return self.txt_surface
-
-
-class StartScreenPlayer(pygame.sprite.Sprite):
-    def __init__(self, player_pos, sort='start'):
-        if sort == 'end':
-            super().__init__(end_player)
-        else:
-            super().__init__(start_player)
-        self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
-        self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = player_pos
-        self.velocity = [0, 0]
-        self.gravity = GRAVITY
-        self.fl = True
-        menu_music.play()
-
-    def update(self):
-        if self.fl:
-            if self.rect.y >= 395:
-                jump_menu.play()
-                self.fl = False
-            self.velocity[1] += self.gravity
-            self.rect.x += self.velocity[0]
-            self.rect.y += self.velocity[1]
-        else:
-            if self.rect.y <= 285:
-                self.fl = True
-                self.velocity = [0, 0]
-            self.velocity[1] -= self.gravity
-            self.rect.x -= self.velocity[0]
-            self.rect.y -= self.velocity[1]
-
-
-StartScreenPlayer((255, 300))
-
-
 def start_screen():
+    hero = StartScreenPlayer((255, 300))
+    menu_music.play()
     # задний фон
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     screen.blit(background, (0, 0))
@@ -243,6 +287,7 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if btn_rect.collidepoint(event.pos):
                     button.play()
+                    hero.kill()
                     menu_music.stop()
                     game()
                 if exit_image_rect.collidepoint(event.pos):
@@ -251,6 +296,8 @@ def start_screen():
                     exit()
                 if score_tab_image_rect.collidepoint(event.pos):
                     button.play()
+                    hero.kill()
+                    menu_music.stop()
                     score_screen()
         screen.blit(background, (0, 0))
         screen.blit(text, text_rect)
@@ -303,15 +350,20 @@ def name_tab(score):
         pygame.display.flip()
 
 
-StartScreenPlayer((295, 300), 'end')
-
-
 def game_over_screen(score):
+    menu_music.play()
+    hero = StartScreenPlayer((295, 300), 'end')
     # очки
     font = pygame.font.Font('data/font.ttf', 16)
-    text_score = font.render('Score: ' + str(score) + ' points', True, pygame.Color((20, 20, 20)))
+    fl = False
+    if len(str(score)) > 6:
+        score = str(score)[:6] + '.'
+        fl = True
+    text_score = font.render(f'Score: {score} points', True, pygame.Color((20, 20, 20)))
     text_rect = text_score.get_rect()
-    text_rect.x, text_rect.y = 30, 100
+    text_rect.x, text_rect.y = 40, 100
+    if fl:
+        text_rect.x, text_rect.y = 20, 100
     # фон
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     # кнопки и картинки
@@ -341,7 +393,6 @@ def game_over_screen(score):
     block.image = pygame.transform.scale(load_image('static_block.png'), (75, 25))
     block.rect = block.image.get_rect()
     block.rect.x, block.rect.y = 290, 450
-    menu_music.play()
     # основной цикл
     while True:
         for event in pygame.event.get():
@@ -351,16 +402,21 @@ def game_over_screen(score):
                 if restart_image_rect.collidepoint(event.pos):
                     button.play()
                     screen.fill((0, 0, 0))
+                    hero.kill()
+                    menu_music.stop()
                     start_screen()
                 if save_image_rect.collidepoint(event.pos):
                     button.play()
                     name_tab(score)
                 if exit_image_rect.collidepoint(event.pos):
                     button.play()
+                    hero.kill()
                     pygame.time.delay(300)
                     exit()
                 if score_tab_image_rect.collidepoint(event.pos):
                     button.play()
+                    hero.kill()
+                    menu_music.stop()
                     score_screen()
         screen.blit(background, (0, 0))
         screen.blit(save_image, save_image_rect)
@@ -379,6 +435,73 @@ def game_over_screen(score):
 def terminate():
     pygame.quit()
     sys.exit()
+
+
+class InputBox:
+    def __init__(self, x, y, w, h, text=''):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.color = pygame.Color('black')
+        self.color_active = pygame.Color((150, 32, 40))
+        self.text = text
+        self.font = pygame.font.Font('data/font.ttf', 16)
+        self.txt_surface = self.font.render(text, True, self.color)
+        self.active = False
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                self.active = not self.active
+            else:
+                self.active = False
+            if self.active:
+                self.color = self.color_active
+        if event.type == pygame.KEYDOWN:
+            if self.active:
+                if event.key == pygame.K_RETURN:
+                    print(self.text)
+                    self.text = ''
+                elif event.key == pygame.K_BACKSPACE:
+                    self.text = self.text[:-1]
+                else:
+                    self.text += event.unicode
+                self.txt_surface = self.font.render(self.text, True, pygame.Color((20, 20, 20)))
+
+    def draw(self, scr):
+        scr.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 5))
+        pygame.draw.rect(scr, self.color, self.rect, 3)
+
+    def text(self):
+        return self.txt_surface
+
+
+class StartScreenPlayer(pygame.sprite.Sprite):
+    def __init__(self, player_pos, sort='start'):
+        if sort == 'end':
+            super().__init__(end_player)
+        else:
+            super().__init__(start_player)
+        self.image = pygame.transform.scale(load_image('player.png'), (55, 55))
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = player_pos
+        self.velocity = [0, 0]
+        self.gravity = GRAVITY
+        self.fl = True
+
+    def update(self):
+        if self.fl:
+            if self.rect.y >= 395:
+                jump_menu.play()
+                self.fl = False
+            self.velocity[1] += self.gravity
+            self.rect.x += self.velocity[0]
+            self.rect.y += self.velocity[1]
+        else:
+            if self.rect.y <= 285:
+                self.fl = True
+                self.velocity = [0, 0]
+            self.velocity[1] -= self.gravity
+            self.rect.x -= self.velocity[0]
+            self.rect.y -= self.velocity[1]
 
 
 class StaticBlock(pygame.sprite.Sprite):
@@ -465,7 +588,7 @@ class CrashedBlockLeft(pygame.sprite.Sprite):
 class WallLeft(pygame.sprite.Sprite):
     def __init__(self, pos):
         super().__init__(wall)
-        self.image = pygame.transform.scale(load_image('wall.png'), (25, 35))
+        self.image = pygame.transform.scale(load_image('wall.png'), (26, 35))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = pos
 
@@ -474,7 +597,7 @@ class WallRight(pygame.sprite.Sprite):
     def __init__(self, pos):
         super().__init__(wall)
         self.image = pygame.transform.rotate(
-            pygame.transform.scale(load_image('wall.png'), (25, 35)), 180)
+            pygame.transform.scale(load_image('wall.png'), (26, 35)), 180)
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = pos
 
