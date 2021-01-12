@@ -42,6 +42,7 @@ all_sprites = pygame.sprite.Group()
 all_platforms = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
 block_types = ['static', 'dynamic', 'crashed']
+game_loop = 0
 
 
 def load_image(name, color_key=None):
@@ -61,6 +62,9 @@ def load_image(name, color_key=None):
 
 
 def game():
+    global game_loop
+    game_loop += 1
+    print(f'[LOG] Game started (Loop: {game_loop})')
     background = pygame.transform.scale(load_image('background.png'), (WIDTH, HEIGHT))
     for sprite in static_block:
         sprite.kill()
@@ -122,6 +126,7 @@ def game():
 
 
 def score_screen():
+    print('[LOG] Switched to Score screen')
     menu_music.play()
     # задний фон
     screen.fill((0, 0, 0))
@@ -153,12 +158,12 @@ def score_screen():
     table_rect = []
     text = ''
     for i in range(len(table_info)):
-        name = table_info[i][0]
+        name = str(table_info[i][0])
         score = table_info[i][1]
         if len(name) > 9:
             name = name[:8] + '...'
-            if len(str(score)) > 10:
-                score = str(score)[:9] + '.'
+            if len(score) > 10:
+                score = str(score[:9]) + f'e{len(str(score)[9:])}'
                 text = font.render(f"{name} {score}", True, pygame.Color(20, 20, 20))
         else:
             text = font.render(f"{name} " + ' ' * (11 - len(name)) + f"{score}", True,
@@ -170,6 +175,7 @@ def score_screen():
         table_texts.append(text)
     if table_rect:
         empty = False
+        print('[LOG] Score screen: Score table loaded')
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -177,6 +183,7 @@ def score_screen():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if home_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Score screen: Home button clicked')
                     screen.fill((0, 0, 0))
                     menu_music.stop()
                     start_screen()
@@ -225,32 +232,20 @@ def score_screen():
 
 
 def save_score(name, score):
+    print('[LOG] Score saved')
     name = name.strip()
-    lower_name = name.lower()
-    exists = False
     con = sqlite3.connect('data/score_base.db')
     cur = con.cursor()
-    existed = []
-    for tpl in cur.execute("""SELECT name FROM score_table""").fetchall():
-        existed.append(*tpl)
-    if name in existed or lower_name in existed:
-        exists = True
-    if exists:
-        if score > cur.execute(
-                f"""SELECT best_score FROM score_table WHERE name='{name}'""").fetchall()[0][0]:
-            que = f"""UPDATE score_table
-SET last_score={score}, best_score={score}\nWHERE name='{name}'"""
-        else:
-            que = f"""UPDATE score_table\nSET last_score={score}\nWHERE name='{name}'"""
-    else:
-        string = 'score_table(name, last_score, best_score)'
-        que = f"""INSERT INTO {string} VALUES('{name}', {score}, {score})"""
+    string = 'score_table(name, last_score, best_score)'
+    que = f"""INSERT OR REPLACE INTO {string} VALUES('{name}', {score}, {score})"""
+    print('[LOG] Database: Score saved')
     cur.execute(que)
     con.commit()
     con.close()
 
 
 def start_screen():
+    print('[LOG] Switched to Start screen')
     hero = StartScreenPlayer((255, 300))
     menu_music.play()
     # задний фон
@@ -287,15 +282,18 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if btn_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Start screen: Play button clicked')
                     hero.kill()
                     menu_music.stop()
                     game()
                 if exit_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Start screen: Exit button clicked')
                     pygame.time.delay(300)
                     exit()
                 if score_tab_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Start screen: Score button clicked')
                     hero.kill()
                     menu_music.stop()
                     score_screen()
@@ -312,6 +310,7 @@ def start_screen():
 
 
 def name_tab(score):
+    print('[LOG] Name tab showed')
     input_box = InputBox(60, 275, 280, 30)
     back_rect = pygame.Rect(50, 200, 300, 150)
     border_rect = pygame.Rect(48, 198, 304, 154)
@@ -334,11 +333,13 @@ def name_tab(score):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if close_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Name Tab: Close button clicked')
                     return
                 if ok_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Name tab: Save button clicked')
                     if input_box.text != '':
-                        save_score(input_box.text, score)
+                        save_score(str(input_box.text), score)
                         return
             input_box.handle_event(event)
         pygame.draw.rect(screen, pygame.Color((20, 20, 20)), border_rect, 0)
@@ -351,13 +352,14 @@ def name_tab(score):
 
 
 def game_over_screen(score):
+    print('[LOG] Switched to Game over screen')
     menu_music.play()
     hero = StartScreenPlayer((295, 300), 'end')
     # очки
     font = pygame.font.Font('data/font.ttf', 16)
     fl = False
     if len(str(score)) > 6:
-        score = str(score)[:6] + '.'
+        score = str(score[:6]) + f'e{len(str(score)[6:])}'
         fl = True
     text_score = font.render(f'Score: {score} points', True, pygame.Color((20, 20, 20)))
     text_rect = text_score.get_rect()
@@ -401,20 +403,24 @@ def game_over_screen(score):
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if restart_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Game over screen: Restart button clicked')
                     screen.fill((0, 0, 0))
                     hero.kill()
                     menu_music.stop()
                     start_screen()
                 if save_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Game over screen: Save button clicked')
                     name_tab(score)
                 if exit_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Game over screen: Exit button clicked')
                     hero.kill()
                     pygame.time.delay(300)
                     exit()
                 if score_tab_image_rect.collidepoint(event.pos):
                     button.play()
+                    print('[LOG] Game over screen: Score button clicked')
                     hero.kill()
                     menu_music.stop()
                     score_screen()
@@ -622,6 +628,7 @@ class Player(pygame.sprite.Sprite):
         if self.rect.y > HEIGHT - self.rect.h + 1:
             self.kill()
             game_over.play()
+            print(f'[LOG] Game ended (Loop: {game_loop})')
             game_over_screen(self.score)
         if not self.flag_coll:
             self.camera_move = 0
