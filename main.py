@@ -722,13 +722,13 @@ class Player(pygame.sprite.Sprite):
         self.score = 0
         self.height = 0
         self.moving_range = 5
-        self.jump = False  # прыгает ли герой
         self.flag = False  # положение по у
         self.flag_coll = False  # соприкосновение с платформой
         self.camera = 0  # положение камеры
         self.camera_move = 0  # плавность камеры
 
     def update(self):
+        pygame.time.delay(10)
         if self.rect.y > HEIGHT - self.rect.h + 1:
             self.kill()
             game_over.play()
@@ -737,27 +737,23 @@ class Player(pygame.sprite.Sprite):
         if not self.flag_coll:
             self.camera_move = 0
             self.camera = 0
-        if self.rect.y > HEIGHT - 200 and not self.flag:
+        if self.rect.y > HEIGHT - 275 and not self.flag:
             self.rect.y -= PIXELS / FPS
         else:
-            if self.rect.y > HEIGHT - 50:
-                self.flag = False
-            else:
-                self.flag = True
-                self.rect.y += PIXELS / FPS
+            self.flag = True
+            self.rect.y += PIXELS / FPS
         if pygame.sprite.spritecollideany(self, all_platforms):
             if self.flag is True:
-                self.camera_move = 700 - pygame.sprite.spritecollideany(self, all_platforms).rect.y
-                self.flag_coll = True
-                self.jump = True
+                if self.rect.y < HEIGHT - 150:
+                    self.camera_move = 300
+                    self.score += 10
                 self.flag = False
-                self.score += 10
+                self.flag_coll = True
                 jump.play()
-        else:
-            self.jump = False
         if self.flag_coll:
-            self.camera = 10
-            self.camera_move -= 10
+            if self.rect.y < HEIGHT - 150:
+                self.camera = 10
+                self.camera_move -= 10
         if self.camera_move <= 0:
             self.flag_coll = False
         if self.rect.y - self.camera <= 200:
