@@ -744,14 +744,14 @@ class Player(pygame.sprite.Sprite):
             self.rect.y += PIXELS / FPS
         if pygame.sprite.spritecollideany(self, all_platforms):
             if self.flag is True:
-                if self.rect.y < HEIGHT - 150:
-                    self.camera_move = 300
+                if self.rect.y < HEIGHT - 125:
+                    self.camera_move = 200
                     self.score += 10
                 self.flag = False
                 self.flag_coll = True
                 jump.play()
         if self.flag_coll:
-            if self.rect.y < HEIGHT - 150:
+            if self.rect.y < HEIGHT - 125:
                 self.camera = 10
                 self.camera_move -= 10
         if self.camera_move <= 0:
