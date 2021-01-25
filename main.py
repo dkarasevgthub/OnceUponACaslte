@@ -100,7 +100,7 @@ def game():
         elif pressed[pygame.K_LEFT]:
             hero.left()
         pos_x = random.randint(25, WIDTH - 85)
-        pos_y -= random.randint(JUMP_HEIGHT - 80, JUMP_HEIGHT)
+        pos_y -= random.randint(JUMP_HEIGHT - 80, JUMP_HEIGHT - 25)
         if generated_blocks_count % 2 == 0:
             block_type = block_types[random.randint(0, 2)]
             if block_type == 'dynamic':
@@ -742,7 +742,8 @@ class Player(pygame.sprite.Sprite):
         else:
             self.flag = True
             self.rect.y += PIXELS / FPS
-        if pygame.sprite.spritecollideany(self, all_platforms):
+        if pygame.sprite.spritecollideany(self, static_block) or pygame.sprite.spritecollideany(
+                self, dynamic_block):
             if self.flag is True:
                 if self.rect.y < HEIGHT - 125:
                     self.camera_move = 200
